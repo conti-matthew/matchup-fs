@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fantasy Sports Matchup</title>
+    <!-- Tailwind CSS CDN for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- React and ReactDOM CDNs -->
+    <script crossorigin src="https://unpkg.com/react@18/umd/react.development.js"></script>
+    <script crossorigin src="https://unpkg.com/react-dom@18/umd/react-dom.development.js"></script>
+    <!-- Babel Standalone to transpile JSX directly in the browser -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+    <!-- Set a global font for the body and add a dark mode theme -->
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700&display=swap');
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Simple spinner animation for loading state */
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        .animate-spin {
+            animation: spin 1s linear infinite;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-100">
+    <div id="root"></div>
+
+    <script type="text/babel">
+        const { useState } = React;
+        const { createRoot } = ReactDOM;
+
+        // An inline SVG component for the search icon
+        const SearchIcon = (props) => (
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={24}
+                height={24}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                {...props}
+            >
+                <circle cx="11" cy="11" r="8" />
+                <path d="m21 21-4.3-4.3" />
+            </svg>
+        );
+        
+        // An inline SVG for the loading spinner
+        const Spinner = (props) => (
+            <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width={48}
+                height={48}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth={2}
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="animate-spin text-blue-400"
+                {...props}
+            >
+                <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+            </svg>
+        );
+
+        // --- Expanded Sample Player Data with more detailed stats ---
+        const samplePlayers = [
+            { id: 1, name: 'Patrick Mahomes', team: 'KC', position: 'QB', number: 15, projectedPoints: 25.5, stats: { passingYards: 300, passingTouchdowns: 3, interceptions: 1, rushingYards: 20 } },
+            { id: 2, name: 'Christian McCaffrey', team: 'SF', position: 'RB', number: 23, projectedPoints: 22.1, stats: { rushingYards: 110, rushingTouchdowns: 1, receptions: 5, receivingYards: 40, receivingTouchdowns: 1 } },
+            { id: 3, name: 'Justin Jefferson', team: 'MIN', position: 'WR', number: 18, projectedPoints: 19.8, stats: { receptions: 8, receivingYards: 120, receivingTouchdowns: 1 } },
+            { id: 4, name: 'Josh Allen', team: 'BUF', position: 'QB', number: 17, projectedPoints: 24.9, stats: { passingYards: 280, passingTouchdowns: 2, interceptions: 0, rushingYards: 50, rushingTouchdowns: 1 } },
+            { id: 5, name: 'Cooper Kupp', team: 'LAR', position: 'WR', number: 10, projectedPoints: 18.5, stats: { receptions: 10, receivingYards: 100, receivingTouchdowns: 1 } },
+            { id: 6, name: 'Saquon Barkley', team: 'NYG', position: 'RB', number: 26, projectedPoints: 17.2, stats: { rushingYards: 90, rushingTouchdowns: 1, receptions: 3, receivingYards: 25 } },
+            { id: 7, name: 'Jalen Hurts', team: 'PHI', position: 'QB', number: 1, projectedPoints: 23.3, stats: { passingYards: 250, passingTouchdowns: 1, interceptions: 1, rushingYards: 65, rushingTouchdowns: 2 } },
+            { id: 8, name: 'Ja\'Marr Chase', team: 'CIN', position: 'WR', number: 1, projectedPoints: 19.1, stats: { receptions: 7, receivingYards: 115, receivingTouchdowns: 1 } },
+            { id: 9, name: 'Nick Chubb', team: 'CLE', position: 'RB', number: 24, projectedPoints: 16.5, stats: { rushingYards: 130, rushingTouchdowns: 1, receptions: 1, receivingYards: 5 } },
+            { id: 10, name: 'Austin Ekeler', team: 'LAC', position: 'RB', number: 30, projectedPoints: 18.0, stats: { rushingYards: 60, rushingTouchdowns: 1, receptions: 7, receivingYards: 50 } },
+            { id: 11, name: 'Travis Kelce', team: 'KC', position: 'TE', number: 87, projectedPoints: 15.7, stats: { receptions: 6, receivingYards: 85, receivingTouchdowns: 1 } },
+            { id: 12, name: 'Stefon Diggs', team: 'BUF', position: 'WR', number: 14, projectedPoints: 17.9, stats: { receptions: 9, receivingYards: 105, receivingTouchdowns: 1 } },
+            { id: 13, name: 'Justin Herbert', team: 'LAC', position: 'QB', number: 10, projectedPoints: 22.8, stats: { passingYards: 315, passingTouchdowns: 2, interceptions: 0, rushingYards: 15 } },
+            { id: 14, name: 'Tyreek Hill', team: 'MIA', position: 'WR', number: 10, projectedPoints: 19.5, stats: { receptions: 6, receivingYards: 130, receivingTouchdowns: 1 } },
+            { id: 15, name: 'Dalvin Cook', team: 'NYJ', position: 'RB', number: 4, projectedPoints: 15.3, stats: { rushingYards: 100, rushingTouchdowns: 1, receptions: 2, receivingYards: 15 } },
+            { id: 16, name: 'Davante Adams', team: 'LV', position: 'WR', number: 17, projectedPoints: 18.7, stats: { receptions: 9, receivingYards: 110, receivingTouchdowns: 1 } },
+            { id: 17, name: 'A.J. Brown', team: 'PHI', position: 'WR', number: 11, projectedPoints: 17.5, stats: { receptions: 7, receivingYards: 95, receivingTouchdowns: 1 } },
+            { id: 18, name: 'Joe Burrow', team: 'CIN', position: 'QB', number: 9, projectedPoints: 21.0, stats: { passingYards: 275, passingTouchdowns: 2, interceptions: 0, rushingYards: 10 } },
+            { id: 19, name: 'Derrick Henry', team: 'TEN', position: 'RB', number: 22, projectedPoints: 16.9, stats: { rushingYards: 140, rushingTouchdowns: 1, receptions: 1, receivingYards: -5 } },
+            { id: 20, name: 'Amon-Ra St. Brown', team: 'DET', position: 'WR', number: 14, projectedPoints: 16.2, stats: { receptions: 8, receivingYards: 90, receivingTouchdowns: 1 } },
+            { id: 21, name: 'Tony Pollard', team: 'DAL', position: 'RB', number: 20, projectedPoints: 14.8, stats: { rushingYards: 80, rushingTouchdowns: 1, receptions: 4, receivingYards: 30 } },
+            { id: 22, name: 'Lamar Jackson', team: 'BAL', position: 'QB', number: 8, projectedPoints: 21.5, stats: { passingYards: 230, passingTouchdowns: 2, interceptions: 0, rushingYards: 75 } },
+            { id: 23, name: 'CeeDee Lamb', team: 'DAL', position: 'WR', number: 88, projectedPoints: 17.0, stats: { receptions: 6, receivingYards: 100, receivingTouchdowns: 1 } },
+            { id: 24, name: 'Bijan Robinson', team: 'ATL', position: 'RB', number: 7, projectedPoints: 14.1, stats: { rushingYards: 75, rushingTouchdowns: 1, receptions: 3, receivingYards: 20 } },
+            { id: 25, name: 'Keenan Allen', team: 'LAC', position: 'WR', number: 13, projectedPoints: 15.9, stats: { receptions: 10, receivingYards: 80, receivingTouchdowns: 0 } },
+            { id: 26, name: 'Michael Thomas', team: 'NO', position: 'WR', number: 13, projectedPoints: 12.5, stats: { receptions: 7, receivingYards: 60, receivingTouchdowns: 0 } },
+            { id: 27, name: 'James Conner', team: 'AZ', position: 'RB', number: 6, projectedPoints: 13.5, stats: { rushingYards: 70, rushingTouchdowns: 1, receptions: 5, receivingYards: 15 } },
+            { id: 28, name: 'George Kittle', team: 'SF', position: 'TE', number: 85, projectedPoints: 12.0, stats: { receptions: 5, receivingYards: 75, receivingTouchdowns: 0 } },
+            { id: 29, name: 'Aaron Rodgers', team: 'NYJ', position: 'QB', number: 8, projectedPoints: 19.0, stats: { passingYards: 245, passingTouchdowns: 2, interceptions: 1, rushingYards: 10 } },
+            { id: 30, name: 'D.K. Metcalf', team: 'SEA', position: 'WR', number: 14, projectedPoints: 15.1, stats: { receptions: 5, receivingYards: 95, receivingTouchdowns: 1 } },
+            { id: 31, name: 'Puka Nacua', team: 'LAR', position: 'WR', number: 17, projectedPoints: 16.5, stats: { receptions: 8, receivingYards: 110, receivingTouchdowns: 0 } },
+            { id: 32, name: 'Kyren Williams', team: 'LAR', position: 'RB', number: 23, projectedPoints: 14.9, stats: { rushingYards: 90, rushingTouchdowns: 1, receptions: 3, receivingYards: 25 } },
+            { id: 33, name: 'Mike Evans', team: 'TB', position: 'WR', number: 13, projectedPoints: 16.0, stats: { receptions: 5, receivingYards: 100, receivingTouchdowns: 1 } },
+            { id: 34, name: 'Joe Mixon', team: 'CIN', position: 'RB', number: 28, projectedPoints: 13.5, stats: { rushingYards: 65, rushingTouchdowns: 1, receptions: 3, receivingYards: 20 } },
+            { id: 35, name: 'Mark Andrews', team: 'BAL', position: 'TE', number: 89, projectedPoints: 14.5, stats: { receptions: 6, receivingYards: 70, receivingTouchdowns: 1 } }
+        ];
+
+        // The main App component
+        const App = () => {
+            // State for the search query, teams, and matchup result and narration
+            const [searchTerm, setSearchTerm] = useState('');
+            const [teamA, setTeamA] = useState([]);
+            const [teamB, setTeamB] = useState([]);
+            const [matchupResult, setMatchupResult] = useState(null);
+            const [matchupNarration, setMatchupNarration] = useState(null);
+            const [highlightReelImage, setHighlightReelImage] = useState(null);
+            const [isGeneratingImage, setIsGeneratingImage] = useState(false);
+
+
+            // Function to handle changes in the search input
+            const handleSearchChange = (event) => {
+                setSearchTerm(event.target.value);
+            };
+
+            // Filter the players based on the search term
+            const filteredPlayers = samplePlayers.filter(player =>
+                player.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                player.team.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                player.position.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                player.number.toString().includes(searchTerm)
+            );
+
+            // Function to add a player to a team
+            const addPlayerToTeam = (player, team) => {
+                // Check if the player is already on a team
+                if (teamA.find(p => p.id === player.id) || teamB.find(p => p.id === player.id)) {
+                    return; // Player is already on a team, do nothing
+                }
+
+                if (team === 'A') {
+                    setTeamA([...teamA, player]);
+                } else if (team === 'B') {
+                    setTeamB([...teamB, player]);
+                }
+                // Clear the result and narration when a new player is added
+                setMatchupResult(null);
+                setMatchupNarration(null);
+            };
+
+            // Function to remove a player from a team
+            const removePlayerFromTeam = (playerId, team) => {
+                if (team === 'A') {
+                    setTeamA(teamA.filter(player => player.id !== playerId));
+                } else if (team === 'B') {
+                    setTeamB(teamB.filter(player => player.id !== playerId));
+                }
+                // Clear the result and narration when a player is removed
+                setMatchupResult(null);
+                setMatchupNarration(null);
+            };
+
+            // Function to clear both teams and reset the app
+            const clearTeams = () => {
+                setTeamA([]);
+                setTeamB([]);
+                setMatchupResult(null);
+                setMatchupNarration(null);
+                setHighlightReelImage(null);
+            }
+
+            // Function to simulate the matchup and generate the narration
+            const simulateMatchup = () => {
+                const totalPointsA = teamA.reduce((sum, player) => sum + player.projectedPoints, 0);
+                const totalPointsB = teamB.reduce((sum, player) => sum + player.projectedPoints, 0);
+
+                // Determine the winner and set the result state
+                let winner = '';
+                if (totalPointsA > totalPointsB) {
+                    winner = 'Team A';
+                } else if (totalPointsB > totalPointsA) {
+                    winner = 'Team B';
+                } else {
+                    winner = 'Tie';
+                }
+                setMatchupResult({ winner, scoreA: totalPointsA, scoreB: totalPointsB });
+
+                // Find the highest and lowest scoring players for the narration
+                const allPlayers = [...teamA, ...teamB];
+                const highestScorer = allPlayers.length > 0 ? allPlayers.sort((a, b) => b.projectedPoints - a.projectedPoints)[0] : null;
+                const lowestScorer = allPlayers.length > 0 ? allPlayers.sort((a, b) => a.projectedPoints - b.projectedPoints)[0] : null;
+                
+                // Get the best player from each team for the narration
+                const topPlayerA = teamA.length > 0 ? teamA.sort((a, b) => b.projectedPoints - a.projectedPoints)[0] : null;
+                const topPlayerB = teamB.length > 0 ? teamB.sort((a, b) => b.projectedPoints - a.projectedPoints)[0] : null;
+
+                // Construct the narration string
+                let narration = `The matchup is complete! The final score is Team A: ${totalPointsA.toFixed(1)} points, and Team B: ${totalPointsB.toFixed(1)} points. `;
+
+                if (winner === 'Tie') {
+                    narration += "It was a hard-fought battle that ended in a tie, with both teams showcasing solid talent.";
+                } else {
+                    narration += `${winner} wins the contest! `;
+                    const winningTeamTopPlayer = winner === 'Team A' ? topPlayerA : topPlayerB;
+                    const losingTeamTopPlayer = winner === 'Team A' ? topPlayerB : topPlayerA;
+                    
+                    if (winningTeamTopPlayer) {
+                        narration += `The victory was largely driven by a standout performance from ${winningTeamTopPlayer.name}. `;
+                        if (winningTeamTopPlayer.position === 'QB') {
+                             narration += `His stat line of ${winningTeamTopPlayer.stats.passingYards} passing yards and ${winningTeamTopPlayer.stats.passingTouchdowns} touchdowns was crucial. `;
+                        } else if (winningTeamTopPlayer.position === 'RB') {
+                             narration += `He dominated with ${winningTeamTopPlayer.stats.rushingYards} rushing yards and ${winningTeamTopPlayer.stats.rushingTouchdowns} rushing touchdowns. `;
+                        } else if (winningTeamTopPlayer.position === 'WR' || winningTeamTopPlayer.position === 'TE') {
+                             narration += `His impressive ${winningTeamTopPlayer.stats.receptions} receptions for ${winningTeamTopPlayer.stats.receivingYards} yards were a game-changer. `;
+                        }
+                    }
+
+                    if (losingTeamTopPlayer) {
+                        narration += `On the other side, despite a strong effort from ${losingTeamTopPlayer.name}, who put up ${losingTeamTopPlayer.projectedPoints.toFixed(1)} points, the team as a whole couldn't keep pace.`;
+                    }
+                }
+                
+                // Set the narration state
+                setMatchupNarration(narration);
+            };
+
+            // Function to generate an AI highlight image
+            const generateHighlightReel = async () => {
+                setIsGeneratingImage(true);
+                setHighlightReelImage(null);
+
+                const prompt = "A dynamic, cinematic photo of a fantasy football player celebrating a game-winning touchdown in a vibrant, futuristic stadium. The player is a blur of motion, with glowing effects on his jersey, and the crowd is cheering wildly. A digital scoreboard in the background shows a close game score.";
+
+                try {
+                    const payload = { instances: { prompt: prompt }, parameters: { "sampleCount": 1} };
+                    const apiKey = "";
+                    const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/imagen-3.0-generate-002:predict?key=${apiKey}`;
+                    
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.predictions && result.predictions.length > 0 && result.predictions[0].bytesBase64Encoded) {
+                        const imageUrl = `data:image/png;base64,${result.predictions[0].bytesBase64Encoded}`;
+                        setHighlightReelImage(imageUrl);
+                    } else {
+                        console.error('API response was not in the expected format:', result);
+                    }
+                } catch (error) {
+                    console.error('Failed to generate image:', error);
+                } finally {
+                    setIsGeneratingImage(false);
+                }
+            };
+
+            // Helper component to render a team's list of players
+            const TeamRoster = ({ teamName, players, removePlayer }) => (
+                <div className="flex-1 bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+                    <h2 className="text-2xl font-bold text-blue-400 mb-4">{teamName}</h2>
+                    {players.length > 0 ? (
+                        <ul>
+                            {players.map(player => (
+                                <li key={player.id} className="bg-gray-700 rounded-lg shadow p-3 mb-2">
+                                    <div className="flex justify-between items-center mb-1">
+                                        <span className="font-semibold text-lg">{player.name}</span>
+                                        <button
+                                            onClick={() => removePlayer(player.id)}
+                                            className="bg-red-600 hover:bg-red-700 text-white font-bold py-1 px-2 rounded-lg transition-colors duration-200 text-sm"
+                                        >
+                                            Remove
+                                        </button>
+                                    </div>
+                                    <div className="flex items-center space-x-2 text-gray-400 text-sm">
+                                        <span className="bg-blue-600 text-white font-semibold px-2 py-1 text-xs rounded-full">
+                                            {player.position}
+                                        </span>
+                                        <span>
+                                            {player.team} #<span className="font-semibold">{player.number}</span>
+                                        </span>
+                                        <span className="font-mono text-green-400">
+                                            Pts: <span className="font-bold">{player.projectedPoints}</span>
+                                        </span>
+                                    </div>
+                                    {/* Displaying detailed stats */}
+                                    <div className="mt-2 text-sm text-gray-300">
+                                        {player.position === 'QB' && (
+                                            <p>Pass: {player.stats.passingYards} Yds, {player.stats.passingTouchdowns} TD, {player.stats.interceptions} Int</p>
+                                        )}
+                                        {(player.position === 'WR' || player.position === 'TE') && (
+                                            <p>Rec: {player.stats.receptions} catches, {player.stats.receivingYards} Yds, {player.stats.receivingTouchdowns} TD</p>
+                                        )}
+                                        {player.position === 'RB' && (
+                                            <p>Rush: {player.stats.rushingYards} Yds, {player.stats.rushingTouchdowns} TD</p>
+                                        )}
+                                    </div>
+                                </li>
+                            ))}
+                        </ul>
+                    ) : (
+                        <p className="text-gray-500 italic">No players on this team.</p>
+                    )}
+                    <div className="mt-4 text-right text-xl font-bold">
+                        Total Projected Points: <span className="text-green-400">{players.reduce((sum, p) => sum + p.projectedPoints, 0).toFixed(1)}</span>
+                    </div>
+                </div>
+            );
+
+            return (
+                <div className="min-h-screen p-4 flex flex-col items-center">
+                    <div className="w-full max-w-6xl">
+                        {/* Header and search section */}
+                        <header className="py-8 text-center">
+                            <h1 className="text-4xl md:text-5xl font-extrabold text-blue-400">
+                                Fantasy Football Matchup
+                            </h1>
+                            <p className="mt-2 text-lg text-gray-400">
+                                Search, build your teams, and simulate a matchup!
+                            </p>
+                        </header>
+
+                        <div className="relative mb-8">
+                            <input
+                                type="text"
+                                placeholder="Search by name, team, position, or jersey number..."
+                                className="w-full p-4 pl-12 bg-gray-800 border border-gray-700 rounded-lg text-lg text-gray-200 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 transition-all duration-200"
+                                value={searchTerm}
+                                onChange={handleSearchChange}
+                            />
+                            <SearchIcon className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500" />
+                        </div>
+
+                        {/* Main layout: player list and teams */}
+                        <main className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                            {/* Player list column */}
+                            <div className="lg:col-span-1 bg-gray-800 rounded-lg shadow-lg p-6 border border-gray-700">
+                                <h2 className="text-2xl font-bold text-white mb-4">Available Players</h2>
+                                {filteredPlayers.length > 0 ? (
+                                    <div className="space-y-4">
+                                        {filteredPlayers.map(player => (
+                                            <div
+                                                key={player.id}
+                                                className="bg-gray-700 rounded-lg shadow p-4 border border-gray-600 flex flex-col sm:flex-row justify-between items-center"
+                                            >
+                                                <div>
+                                                    <h3 className="text-lg font-bold text-white">{player.name}</h3>
+                                                    <div className="flex items-center space-x-2 text-gray-400">
+                                                        <span className="bg-blue-600 text-white font-semibold px-2 py-1 text-sm rounded-full">
+                                                            {player.position}
+                                                        </span>
+                                                        <span className="text-sm">
+                                                            {player.team} #<span className="font-semibold">{player.number}</span>
+                                                        </span>
+                                                    </div>
+                                                    <p className="mt-1 text-lg font-mono text-green-400">
+                                                        Pts: <span className="font-bold">{player.projectedPoints}</span>
+                                                    </p>
+                                                </div>
+                                                <div className="flex space-x-2 mt-2 sm:mt-0">
+                                                    <button
+                                                        onClick={() => addPlayerToTeam(player, 'A')}
+                                                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200"
+                                                    >
+                                                        Add to Team A
+                                                    </button>
+                                                    <button
+                                                        onClick={() => addPlayerToTeam(player, 'B')}
+                                                        className="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-200"
+                                                    >
+                                                        Add to Team B
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="text-center text-gray-500 py-12">
+                                        <p className="text-xl">No players found.</p>
+                                    </div>
+                                )}
+                            </div>
+
+                            {/* Teams and matchup column */}
+                            <div className="lg:col-span-2">
+                                <div className="flex flex-col lg:flex-row gap-8">
+                                    <TeamRoster teamName="Team A" players={teamA} removePlayer={id => removePlayerFromTeam(id, 'A')} />
+                                    <TeamRoster teamName="Team B" players={teamB} removePlayer={id => removePlayerFromTeam(id, 'B')} />
+                                </div>
+                                
+                                {/* Matchup controls and result */}
+                                <div className="mt-8 text-center">
+                                    <div className="flex flex-col md:flex-row justify-center gap-4 mb-6">
+                                        <button
+                                            onClick={simulateMatchup}
+                                            className="w-full md:w-auto bg-green-600 hover:bg-green-700 text-white font-extrabold text-lg py-4 px-8 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                            disabled={teamA.length === 0 || teamB.length === 0}
+                                        >
+                                            Simulate Matchup
+                                        </button>
+                                        <button
+                                            onClick={clearTeams}
+                                            className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white font-bold text-lg py-4 px-8 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105"
+                                        >
+                                            Clear Teams
+                                        </button>
+                                    </div>
+
+                                    {matchupResult && (
+                                        <div className="mt-6 p-6 bg-gray-800 rounded-lg shadow-xl border border-gray-700">
+                                            <h3 className="text-2xl md:text-3xl font-extrabold text-yellow-400 mb-2">Matchup Result</h3>
+                                            <p className="text-xl">
+                                                Team A: <span className="font-bold text-green-400">{matchupResult.scoreA.toFixed(1)}</span> points
+                                            </p>
+                                            <p className="text-xl mb-4">
+                                                Team B: <span className="font-bold text-green-400">{matchupResult.scoreB.toFixed(1)}</span> points
+                                            </p>
+                                            <div className="text-3xl font-bold">
+                                                {matchupResult.winner === 'Tie' ? (
+                                                    <span className="text-gray-400">It's a tie!</span>
+                                                ) : (
+                                                    <span className="text-yellow-400">{matchupResult.winner} wins!</span>
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                    {matchupNarration && (
+                                        <div className="mt-6 p-6 bg-gray-800 rounded-lg shadow-xl border border-gray-700 text-left">
+                                            <h3 className="text-xl font-bold text-white mb-2">Matchup Summary</h3>
+                                            <p>{matchupNarration}</p>
+                                        </div>
+                                    )}
+                                    
+                                    {/* AI Highlight Reel Section */}
+                                    <div className="mt-12">
+                                        <h3 className="text-2xl font-bold text-blue-400 mb-4">AI Highlight Reel</h3>
+                                        <button
+                                            onClick={generateHighlightReel}
+                                            className="bg-orange-500 hover:bg-orange-600 text-white font-bold py-3 px-6 rounded-lg shadow-lg transition-all duration-300 transform hover:scale-105 disabled:bg-gray-600 disabled:cursor-not-allowed"
+                                            disabled={isGeneratingImage}
+                                        >
+                                            {isGeneratingImage ? 'Generating...' : 'Generate a Highlight Photo'}
+                                        </button>
+                                        <div className="mt-6 flex justify-center items-center h-96 bg-gray-800 rounded-lg border border-gray-700">
+                                            {isGeneratingImage && <Spinner />}
+                                            {highlightReelImage && !isGeneratingImage && (
+                                                <img src={highlightReelImage} alt="AI generated fantasy football highlight" className="max-h-full max-w-full rounded-lg object-contain" />
+                                            )}
+                                            {!isGeneratingImage && !highlightReelImage && (
+                                                <p className="text-gray-500 italic">Click the button to generate a dynamic highlight photo!</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </main>
+                    </div>
+                </div>
+            );
+        };
+
+        // Render the App component to the root element
+        const rootElement = document.getElementById('root');
+        createRoot(rootElement).render(<App />);
+    </script>
+</body>
+</html>
